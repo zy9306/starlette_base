@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "starlette_base"
+version = "0.1.0"
+description = "A base project for Starlette"
+authors = [{ name = "z" }]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "aiosqlite==0.20.0",
+    "asyncmy==0.2.10",
+    "pendulum==3.0.0",
+    "pydantic==2.10.5",
+    "redis==5.2.1",
+    "spectree==1.4.4",
+    "starlette==0.45.2",
+    "tortoise-orm==0.23.0",
+    "uvicorn==0.34.0",
+    "PyJWT==2.10.1",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["starlette_base"]
+
+[tool.uv]
+dev-dependencies = []
+
+[tool.black]
+line-length = 120
