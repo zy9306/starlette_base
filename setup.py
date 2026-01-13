@@ -24,5 +24,6 @@ setup(
         "starlette==0.45.2",
         "tortoise-orm==0.23.0",
         "uvicorn==0.34.0",
+        "PyJWT==2.10.1",
     ],
 )

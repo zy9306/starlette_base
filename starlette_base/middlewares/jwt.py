@@ -1,5 +1,4 @@
 import logging
-from dataclasses import dataclass
 from datetime import datetime
 
 import jwt
@@ -16,24 +15,22 @@ class JWTPayload(BaseModel):
     session_id: str = None
 
 
-@dataclass
-class JWTConfig:
-    cookie_name: str
-    algorithm: str
-    key: str
-    expiration_delta: int
-
-    def __init__(self, cookie_name="jwt", algorithm="HS256", key="secret", expiration_delta=7 * 24 * 3600):
-        self.cookie_name = cookie_name
-        self.algorithm = algorithm
-        self.key = key
-        self.expiration_delta = expiration_delta
+DEFAULT_JWT_CONFIG = {
+    "cookie_name": "jwt",
+    "algorithm": "HS256",
+    "key": "secret",
+    "expiration_delta": 7 * 24 * 3600,
+}
 
 
 class JWTMiddleware:
-    def __init__(self, app: ASGIApp, jwt_config: JWTConfig) -> None:
+    def __init__(self, app: ASGIApp, config_loader, config_name="JWT_CONFIG") -> None:
         self.app = app
-        self.jwt_config = jwt_config
+        self.jwt_config = config_loader.get(config_name, None)
+        if not self.jwt_config:
+            raise RuntimeError(f"{config_name} not found!")
+        if missing := (set(DEFAULT_JWT_CONFIG.keys()) - set(self.jwt_config.keys())):
+            raise RuntimeError(f"JWT config invalid! missing keys: {missing}")
         self.jwt_payload = None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -41,7 +38,7 @@ class JWTMiddleware:
             await self.app(scope, receive, send)
             return
         connection = HTTPConnection(scope)
-        jwt_token = connection.cookies.get(self.jwt_config.cookie_name)
+        jwt_token = connection.cookies.get(self.jwt_config["cookie_name"])
         self.jwt_payload = self.decode_jwt(jwt_token)
         scope["jwt_payload"] = self.jwt_payload
         await self.app(scope, receive, send)
@@ -52,8 +49,8 @@ class JWTMiddleware:
         try:
             jwt_payload = jwt.decode(
                 jwt=jwt_token,
-                key=self.jwt_config.key,
-                algorithms=self.jwt_config.algorithm,
+                key=self.jwt_config["key"],
+                algorithms=self.jwt_config["algorithm"],
             )
             return JWTPayload(**jwt_payload)
         except jwt.ExpiredSignatureError:
@@ -66,6 +63,6 @@ class JWTMiddleware:
         payload.exp = payload.iat + self.expiration_delta
         return jwt.encode(
             payload.model_dump(),
-            key=self.jwt_config.key,
-            algorithm=self.jwt_config.algorithm,
+            key=self.jwt_config["key"],
+            algorithm=self.jwt_config["algorithm"],
         )

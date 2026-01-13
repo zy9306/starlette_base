@@ -1,7 +1,6 @@
 import importlib
 import logging
 import os
-from dataclasses import is_dataclass
 from threading import Lock
 
 
@@ -23,9 +22,7 @@ class ConfigLoader(dict):
             configs_module = importlib.import_module(f"{configs_package}.{env}")
             logging.warning(f"Loading configs from {configs_module.__name__}")
             for attribute_name in dir(configs_module):
-                attribute = getattr(configs_module, attribute_name)
-                if is_dataclass(attribute):
-                    attr = attribute()
-                    setattr(self, attribute_name, attr)
-                    self[attribute_name] = attr
+                attr = getattr(configs_module, attribute_name)
+                setattr(self, attribute_name, attr)
+                self[attribute_name] = attr
             self._is_loaded = True

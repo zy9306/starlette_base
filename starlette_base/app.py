@@ -2,7 +2,6 @@ from typing import Callable
 
 from starlette.applications import Starlette
 
-from .plugins.base import PluginManager
 from .route import RouteManager
 
 
@@ -14,11 +13,7 @@ class StarletteBaseApp(Starlette):
             middleware = middleware(self)
 
         super().__init__(
-            debug=self.config_loader.AppConfig.debug,
+            debug=self.config_loader.APP_CONFIG["debug"],
             routes=routes or RouteManager.routes,
             middleware=middleware or [],
         )
-
-        self.plugin_manager = PluginManager(self)
-        if plugins := self.config_loader.AppConfig.plugins:
-            self.plugin_manager.register_plugins(plugins)

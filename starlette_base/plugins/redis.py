@@ -1,40 +1,38 @@
-from dataclasses import dataclass
+import logging
+from copy import deepcopy
 
 import redis as redis_sync
 import redis.asyncio as redis_async
-from starlette.config import Config
 
-config = Config()
-
-
-@dataclass
-class RedisConfig:
-    host: str
-    port: int
-    db: int
-
-    def __init__(self, host="localhost", port=6379, db=0):
-        self.host = config("REDIS_HOST", cast=str, default=host)
-        self.port = config("REDIS_PORT", cast=int, default=port)
-        self.db = config("REDIS_DB", cast=int, default=db)
+DEFAULT_REDIS_CONFIG = {
+    "host": "localhost",
+    "port": 6379,
+    "db": 0,
+}
 
 
 class RedisPlugin:
-    def __init__(self, config_cls="RedisConfig", sync=False):
-        self.config_cls = config_cls
-        self.host = "localhost"
-        self.port = 6379
-        self.db = 0
+    def __init__(self, config_name="REDIS_CONFIG", sync=False):
+        self._config_name = config_name
         self._redis: redis_sync.Redis | redis_async.Redis = None
         self.sync = sync
+        self._initialized = False
 
     def register(self, app):
-        config = app.config_loader.get(self.config_cls, None)
+        if self._initialized:
+            return self._redis
+        config = app.config_loader.get(self._config_name, None)
         if not config:
-            raise RuntimeError(f"{self.config_cls} not found!")
-        self.host = getattr(config, "host", self.host)
-        self.port = getattr(config, "port", self.port)
-        self.db = getattr(config, "db", self.db)
+            raise RuntimeError("redis config not found!")
+        if missing := (set(DEFAULT_REDIS_CONFIG.keys()) - set(config.keys())):
+            raise RuntimeError(f"redis config invalid! missing keys: {missing}")
+
+        config = deepcopy(config)
+
+        self.host = config["host"]
+        self.port = config["port"]
+        self.db = config["db"]
+
         if self._redis is None:
             if self.sync:
                 pool = redis_sync.ConnectionPool(host=self.host, port=self.port, db=self.db)
@@ -42,16 +40,10 @@ class RedisPlugin:
             else:
                 pool = redis_async.ConnectionPool(host=self.host, port=self.port, db=self.db)
                 self._redis = redis_async.Redis(connection_pool=pool)
+        self._initialized = True
+        logging.warning("--- Redis client initialized.")
+        return self._redis
 
-    def __getattr__(self, name):
-        return getattr(self._redis, name)
-
-
-rdb_async: redis_async.Redis = RedisPlugin(sync=False)
-
-rdb_sync: redis_sync.Redis = RedisPlugin(sync=True)
-
-
-def register(app):
-    rdb_sync.register(app)
-    rdb_async.register(app)
+    @property
+    def redis(self):
+        return self._redis
