@@ -2,24 +2,23 @@ from starlette.routing import Route
 
 
 class RouteManager:
-    routes = []
+    def __init__(self, prefix: str = ""):
+        self.routes = []
+        self.prefix = prefix
 
-    @classmethod
-    def add_route(cls, path: str, endpoint, methods: list = ["GET"]):
-        for route in cls.routes:
+    def add_route(self, path: str, endpoint, methods: list = ["GET"]):
+        for route in self.routes:
             if route.path == path and set(route.methods) == set(methods):
                 raise ValueError(f"Route for {path} with methods {methods} already exists.")
 
-        cls.routes.append(Route(path, endpoint, methods=methods))
+        self.routes.append(Route(f"{self.prefix}{path}", endpoint, methods=methods))
 
-    @classmethod
-    def get_routes(cls):
-        return cls.routes
+    def get_routes(self):
+        return self.routes
 
-    @classmethod
-    def register(cls, path: str, methods: list = ["GET"]):
+    def register(self, path: str, methods: list = ["GET"]):
         def decorator(func):
-            cls.add_route(path, func, methods)
+            self.add_route(path, func, methods)
             return func
 
         return decorator
